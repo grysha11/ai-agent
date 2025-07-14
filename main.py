@@ -5,16 +5,22 @@ from google import genai
 from google.genai import types
 
 def main():
-    client = init_gemini()
     if len(sys.argv) < 2:
         print("Error: Incorrect amount of arguments\t Usage: uv main.py \"prompt\"")
         sys.exit(1)
-    args = sys.argv[1:]
-    user_prompt = " ".join(args)
+    client = init_gemini()
+    user_prompt = sys.argv[1]
+    verbose = False
     messages = [
         types.Content(role="user", parts=[types.Part(text=user_prompt)])
     ]
-    generate_response(client, user_prompt)
+    if len(sys.argv) == 3:
+        if sys.argv[2] == "--verbose":
+            verbose = True
+        else:
+            print("Error: Incorrect amount of arguments\t Usage: uv main.py \"prompt\"")
+            sys.exit(1)
+    generate_response(client, user_prompt, verbose)
 
 def init_gemini():
     load_dotenv()
@@ -22,18 +28,17 @@ def init_gemini():
     client = genai.Client(api_key=api_key)
     return client
 
-def generate_response(client, messages):
-    responce = client.models.generate_content(
+def generate_response(client, messages, verbose):
+    response = client.models.generate_content(
         model="gemini-2.0-flash-001",
         contents=messages
     )
-    metadata = responce.usage_metadata
-    print(responce.text)
-    print(f"Prompt tokens: {metadata.prompt_token_count}")
-    print(f"Response tokens: {metadata.candidates_token_count}")
-
-
-
+    metadata = response.usage_metadata
+    print(response.text)
+    if verbose:
+        print(f"User prompt: {messages}")
+        print(f"Prompt tokens: {metadata.prompt_token_count}")
+        print(f"Response tokens: {metadata.candidates_token_count}")
 
 if __name__ == "__main__":
     main()
