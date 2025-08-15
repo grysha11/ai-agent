@@ -1,16 +1,19 @@
 import os
 
-def print_file_info(info):
+def get_files_info(working_directory, directory=None):
+    info = get_files_infos(working_directory, directory)
+    res = list()
     if "Error" in info:
-        print(f"Error: {info["Error"]}")
+        res.append(f"Error: {info["Error"]}")
     else:
         for file, metadata in info.items():
             if "Error" in metadata:
-                print(f"{file}: {metadata['Error']}")
+                res.append(f"{file}: {metadata['Error']}")
             else:
-                print(f"{file}: file_size={metadata['file_size']} bytes, is_dir={metadata['is_dir']}")
+                res.append(f"{file}: file_size={metadata['file_size']} bytes, is_dir={metadata['is_dir']}")
+    return res
 
-def get_files_info(working_directory, directory=None):
+def get_files_infos(working_directory, directory=None):
     res = {}
 
     try:
