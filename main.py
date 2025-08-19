@@ -3,6 +3,23 @@ import sys
 from dotenv import load_dotenv
 from google import genai
 from google.genai import types
+from functions.get_files_info import schema_get_files_info
+
+system_prompt = """
+You are a helpful AI coding agent.
+
+When a user asks a question or makes a request, make a function call plan. You can perform the following operations:
+
+- List files and directories
+
+All paths you provide should be relative to the working directory. You do not need to specify the working directory in your function calls as it is automatically injected for security reasons.
+"""
+
+available_functions = types.Tool(
+    function_declarations=[
+        schema_get_files_info,
+    ]
+)
 
 def main():
     if len(sys.argv) < 2:
@@ -31,10 +48,18 @@ def init_gemini():
 def generate_response(client, messages, verbose):
     response = client.models.generate_content(
         model="gemini-2.0-flash-001",
-        contents=messages
+        contents=messages,
+        config=types.GenerateContentConfig(
+            tools=[available_functions], system_instruction=system_prompt
+        ),
     )
     metadata = response.usage_metadata
-    print(response.text)
+    if response.function_calls:
+        function_calls = response.function_calls
+        for function_call_part in function_calls:
+            print(f"Calling function: {function_call_part.name}({function_call_part.args})")
+    else:
+        print(response.text)
     if verbose:
         print(f"User prompt: {messages}")
         print(f"Prompt tokens: {metadata.prompt_token_count}")

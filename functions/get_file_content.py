@@ -1,11 +1,11 @@
-from functions.get_files_info import get_files_info
+from functions.get_files_info import get_files_info_internal
 from config import MAX_FILE_SIZE
 import os
 
 def get_file_content(working_directory, file_path):
-    if f"Error: Cannot list {file_path} as it is outside the permitted working directory" in get_files_info(working_directory, file_path):
-        return f"Error: Cannot list {file_path} as it is outside the permitted working directory"
-    if "is_dir=True" in get_files_info(working_directory, file_path) or len(get_files_info(working_directory, file_path)) == 0:
+    if f"Error: Cannot list \"{file_path}\" as it is outside the permitted working directory" in get_files_info_internal(working_directory, file_path):
+        return f"Error: Cannot list \"{file_path}\" as it is outside the permitted working directory"
+    if "is_dir=True" in get_files_info_internal(working_directory, file_path) or len(get_files_info_internal(working_directory, file_path)) == 0:
         return f'Error: File not found or is not a regular file: "{file_path}"'
     
     path = os.path.join(working_directory, file_path)
