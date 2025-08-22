@@ -11,6 +11,9 @@ from functions.run_python import schema_run_python_file, run_python_file
 system_prompt = """
 You are a helpful AI coding agent.
 
+You are NOT allowed to answer questions directly without first inspecting code using the tools.  
+To answer, make a function call plan and use the tools (`get_files_info`, `get_file_content`, etc.) until you gather enough information.  
+Only after reading the relevant files may you provide an explanation.
 When a user asks a question or makes a request, make a function call plan. You can perform the following operations:
 
 - List files and directories
@@ -44,9 +47,6 @@ def main():
     client = init_gemini()
     user_prompt = sys.argv[1]
     verbose = False
-    messages = [
-        types.Content(role="user", parts=[types.Part(text=user_prompt)])
-    ]
     if len(sys.argv) == 3:
         if sys.argv[2] == "--verbose":
             verbose = True
@@ -61,25 +61,40 @@ def init_gemini():
     client = genai.Client(api_key=api_key)
     return client
 
-def generate_response(client, messages, verbose):
-    response = client.models.generate_content(
-        model="gemini-2.0-flash-001",
-        contents=messages,
-        config=types.GenerateContentConfig(
-            tools=[available_functions], system_instruction=system_prompt
-        ),
-    )
-    metadata = response.usage_metadata
-    if response.function_calls:
-        function_calls = response.function_calls
-        for function_call_part in function_calls:
-            res = call_function(function_call_part, verbose)
-            if not res.parts[0].function_response.response:
-                raise RuntimeError("Fatal: no respose on function call.")
-            if verbose:
-                print(f"-> {res.parts[0].function_response.response}")
-    else:
-        print(response.text)
+def generate_response(client, user_prompt, verbose):
+    messages = [
+        types.Content(role="user", parts=[types.Part(text=user_prompt)])
+    ]
+    for i in range(20):
+        try:
+            response = client.models.generate_content(
+                model="gemini-2.0-flash-001",
+                contents=messages,
+                config=types.GenerateContentConfig(
+                    tools=[available_functions], system_instruction=system_prompt
+                ),
+            )
+            for candidate in response.candidates:
+                messages.append(candidate.content)
+            metadata = response.usage_metadata
+            if response.function_calls:
+                tool_parts = []
+                function_calls = response.function_calls
+                for function_call_part in function_calls:
+                    res = call_function(function_call_part, verbose)
+                    if not res.parts[0].function_response.response:
+                        raise RuntimeError("Fatal: no respose on function call.")
+                    tool_parts.extend(res.parts)
+                    if verbose:
+                        print(f"-> {res.parts[0].function_response.response}")
+                    messages.append(types.Content(role="tool", parts=tool_parts))
+                    continue
+            elif response.text:
+                print(f"Final response:\n{response.text.strip()}")
+                break
+        except Exception as e:
+            print(f"Error during conversation loop: {e}")
+            break
     if verbose:
         print(f"User prompt: {messages}")
         print(f"Prompt tokens: {metadata.prompt_token_count}")
